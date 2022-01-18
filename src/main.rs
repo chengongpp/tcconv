@@ -123,7 +123,12 @@ fn list_available_formats() {}
 
 
 #[test]
-fn test_convert() {}
+fn test_ground() {
+    let f = std::fs::File.open("test/alacritty.yml").unwrap();
+    let mut reader = io::BufReader::new(f);
+    let mut buf = String::new();
+    reader.read_to_string(&mut buf).unwrap();
+}
 
 fn guess_encoding(buf: &[u8]) -> &'static Encoding {
     let mut det = EncodingDetector::new();

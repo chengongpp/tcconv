@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
+use std::collections::{BTreeMap, HashMap};
 use serde_json::{Error, Value};
 use crate::SchemeFormat;
 
@@ -62,6 +61,10 @@ impl ColorSchemes {
         ColorSchemes(v)
     }
 
+    pub fn to_wt(&self) -> Box<String> {
+        unimplemented!()
+    }
+
     pub fn from_wt(s: &str) -> Result<Box<ColorSchemes>, SchemeError> {
         let kv: Result<HashMap<String, serde_json::Value>, Error> = serde_json::from_str(s);
         let kv = match kv {
@@ -116,16 +119,76 @@ impl ColorSchemes {
         Ok(schemes)
     }
 
+    pub fn from_alacritty(s: &str) -> Result<Box<ColorSchemes>, SchemeError> {
+        let kv: Result<BTreeMap<String, serde_yaml::Value>, SchemeError> = serde_yaml::from_str(s).map_err(|_| SchemeError::Invalid);
+        let kv = match kv {
+            Ok(map) => { map }
+            Err(_) => { return Err(SchemeError::Invalid); }
+        };
+        let scheme = match kv.get("colors") {
+            None => {
+                return Err(SchemeError::Invalid);
+            }
+            Some(schm) => { schm }
+        };
+        let get_u32 = |schm: &serde_yaml::Value, k: &str| {
+            if k == "foreground" {
+                let color_str = &schm.get("primary").unwrap().as_mapping().unwrap()
+                    .get(&serde_yaml::Value::from("foreground")).unwrap().as_str().unwrap()[1..];
+                return u32::from_str_radix(color_str, 16).unwrap();
+            } else if k == "background" {
+                let color_str = &schm.get("primary").unwrap().as_mapping().unwrap()
+                    .get(&serde_yaml::Value::from("background")).unwrap().as_str().unwrap()[1..];
+                return u32::from_str_radix(color_str, 16).unwrap();
+            }
+            let (typ, key) =
+                if let Some(stripped) = k.strip_prefix("bright_") {
+                    ("bright", stripped)
+                } else {
+                    ("normal", k)
+                };
+            let color_str = &schm.get(typ)
+                .unwrap().as_mapping().unwrap().get(&serde_yaml::Value::from(key)).unwrap().as_str().unwrap()[1..];
+            u32::from_str_radix(color_str, 16).unwrap()
+        };
+        let scheme =
+            ColorScheme {
+                name: "default".to_string(),
+                black: get_u32(scheme, "black"),
+                red: get_u32(scheme, "red"),
+                green: get_u32(scheme, "green"),
+                yellow: get_u32(scheme, "yellow"),
+                blue: get_u32(scheme, "blue"),
+                magenta: get_u32(scheme, "magenta"),
+                cyan: get_u32(scheme, "cyan"),
+                white: get_u32(scheme, "white"),
+                bright_black: get_u32(scheme, "bright_black"),
+                bright_red: get_u32(scheme, "bright_red"),
+                bright_green: get_u32(scheme, "bright_green"),
+                bright_yellow: get_u32(scheme, "bright_yellow"),
+                bright_blue: get_u32(scheme, "bright_blue"),
+                bright_magenta: get_u32(scheme, "bright_magenta"),
+                bright_cyan: get_u32(scheme, "bright_cyan"),
+                bright_white: get_u32(scheme, "bright_white"),
+                background: get_u32(scheme, "background"),
+                foreground: get_u32(scheme, "foreground"),
+            };
+        let schemes = ColorSchemes::new(vec![scheme]);
+        Ok(Box::from(schemes))
+    }
+
     pub fn from_literal(s: &str, fmt: SchemeFormat) -> Result<Box<ColorSchemes>, SchemeError> {
         match fmt {
             SchemeFormat::WindowsTerminal => { ColorSchemes::from_wt(s) }
+            SchemeFormat::XShell => { unimplemented!() }
+            SchemeFormat::Alacritty => { ColorSchemes::from_alacritty(s) }
             _ => { Err(SchemeError::Unsupported) }
         }
     }
 
     pub fn to_literal(&self, fmt: SchemeFormat) -> Box<String> {
         match fmt {
-            SchemeFormat::WindowsTerminal => { unimplemented!() }
+            SchemeFormat::WindowsTerminal => { self.to_wt() }
             SchemeFormat::SecureCRT => { unimplemented!() }
             SchemeFormat::XShell => { self.to_xshell() }
             SchemeFormat::Alacritty => { unimplemented!() }
