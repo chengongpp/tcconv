@@ -253,7 +253,7 @@ impl ColorSchemes {
             }
         };
         let sections: Vec<ColorScheme> = conf.sections()
-            .filter_map(|x| { x })
+            .flatten()
             .filter(|name| { !name.eq_ignore_ascii_case("Names") })
             .map(|name| {
                 (name, conf.section(Some(name)).unwrap())

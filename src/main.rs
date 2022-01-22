@@ -23,7 +23,7 @@ impl SchemeFormat {
         match s.to_lowercase().trim() {
             "alacritty" => Ok(SchemeFormat::Alacritty),
             "xshell" | "xcs" => Ok(SchemeFormat::XShell),
-            "windowsterminal" | "wt" => Ok(SchemeFormat::WindowsTerminal),
+            "windowsterminal" | "wt" | "windows terminal" => Ok(SchemeFormat::WindowsTerminal),
             // "mobaxterm" => Ok(SchemeFormat::MobaXTerm),
             _ => Err(SchemeError::Unsupported)
         }
@@ -122,7 +122,8 @@ fn convert(input: &[u8], scheme_from: SchemeFormat, scheme_to: SchemeFormat) -> 
 fn list_available_formats() {
     io::stdout().write_all(b"wt,windows terminal,windowsterminal
 xcs,xshell
-alacritty").unwrap();
+alacritty
+").unwrap();
 }
 
 
