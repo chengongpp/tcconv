@@ -22,9 +22,9 @@ impl SchemeFormat {
     fn from_str(s: &str) -> Result<SchemeFormat, SchemeError> {
         match s.to_lowercase().trim() {
             "alacritty" => Ok(SchemeFormat::Alacritty),
-            "xshell" => Ok(SchemeFormat::XShell),
+            "xshell" | "xcs" => Ok(SchemeFormat::XShell),
             "windowsterminal" | "wt" => Ok(SchemeFormat::WindowsTerminal),
-            "mobaxterm" => Ok(SchemeFormat::MobaXTerm),
+            // "mobaxterm" => Ok(SchemeFormat::MobaXTerm),
             _ => Err(SchemeError::Unsupported)
         }
     }
@@ -35,28 +35,28 @@ fn main() {
     // Option parsing
     let matches = App::new("TCconv")
         .version(env!("CARGO_PKG_VERSION"))
-        .arg(Arg::with_name("from")
-            .short("f")
+        .arg(Arg::new("from")
+            .short('f')
             .long("from")
             .value_name("FROM_FORMAT")
             .takes_value(true)
             .help("From format. Case insensitive (eg. wt)")
         )
-        .arg(Arg::with_name("to")
-            .short("t").long("to")
+        .arg(Arg::new("to")
+            .short('t').long("to")
             .value_name("TO_FORMAT")
             .takes_value(true)
             .help("To format. Case insensitive (eg. alacritty)")
         )
-        .arg(Arg::with_name("INPUT_FILE")
+        .arg(Arg::new("INPUT_FILE")
             .help("Source scheme file")
         )
-        .arg(Arg::with_name("list")
-            .short("l").long("list")
+        .arg(Arg::new("list")
+            .short('l').long("list")
             .takes_value(false)
         )
-        .arg(Arg::with_name("OUTPUT_FILE")
-            .short("o").long("output")
+        .arg(Arg::new("OUTPUT_FILE")
+            .short('o').long("output")
             .takes_value(true)
             .help("Target scheme file")
         )
@@ -119,7 +119,11 @@ fn convert(input: &[u8], scheme_from: SchemeFormat, scheme_to: SchemeFormat) -> 
     gcs.unwrap().to_literal(scheme_to)
 }
 
-fn list_available_formats() {}
+fn list_available_formats() {
+    io::stdout().write_all(b"wt,windows terminal,windowsterminal
+xcs,xshell
+alacritty").unwrap();
+}
 
 
 #[test]

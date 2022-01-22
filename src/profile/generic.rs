@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
+use ini::Properties;
 use serde_json::{Error, Value};
 use crate::SchemeFormat;
 
@@ -14,10 +15,9 @@ pub enum SchemeError {
     Invalid,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ColorScheme {
     name: String,
-
     black: RGBColor,
     red: RGBColor,
     green: RGBColor,
@@ -62,7 +62,35 @@ impl ColorSchemes {
     }
 
     pub fn to_wt(&self) -> Box<String> {
-        unimplemented!()
+        let mut jsonobj = BTreeMap::<String, Value>::new();
+        jsonobj.insert("$schema".to_string(), Value::String("https://aka.ms/terminal-profiles-schema".to_string()));
+        let schemes: Vec<Value> = self.0.clone().into_iter().map(|schm| {
+            let mut bt = serde_json::Map::<String, Value>::new();
+            bt.insert("name".to_string(), Value::String(schm.name));
+            bt.insert("background".to_string(), Value::String(schm.background.to_hex_repr()));
+            bt.insert("black".to_string(), Value::String(schm.black.to_hex_repr()));
+            bt.insert("blue".to_string(), Value::String(schm.blue.to_hex_repr()));
+            bt.insert("brightBlack".to_string(), Value::String(schm.bright_black.to_hex_repr()));
+            bt.insert("brightBlue".to_string(), Value::String(schm.bright_blue.to_hex_repr()));
+            bt.insert("brightCyan".to_string(), Value::String(schm.bright_cyan.to_hex_repr()));
+            bt.insert("brightGreen".to_string(), Value::String(schm.bright_green.to_hex_repr()));
+            bt.insert("brightPurple".to_string(), Value::String(schm.bright_magenta.to_hex_repr()));
+            bt.insert("brightRed".to_string(), Value::String(schm.bright_red.to_hex_repr()));
+            bt.insert("brightWhite".to_string(), Value::String(schm.bright_white.to_hex_repr()));
+            bt.insert("brightYellow".to_string(), Value::String(schm.bright_yellow.to_hex_repr()));
+            bt.insert("cursorColor".to_string(), Value::String(schm.foreground.to_hex_repr()));
+            bt.insert("cyan".to_string(), Value::String(schm.cyan.to_hex_repr()));
+            bt.insert("foreground".to_string(), Value::String(schm.foreground.to_hex_repr()));
+            bt.insert("green".to_string(), Value::String(schm.green.to_hex_repr()));
+            bt.insert("purple".to_string(), Value::String(schm.magenta.to_hex_repr()));
+            bt.insert("red".to_string(), Value::String(schm.red.to_hex_repr()));
+            bt.insert("selectionBackground".to_string(), Value::String(schm.foreground.to_hex_repr()));
+            bt.insert("white".to_string(), Value::String(schm.white.to_hex_repr()));
+            bt.insert("yellow".to_string(), Value::String(schm.yellow.to_hex_repr()));
+            Value::Object(bt)
+        }).collect();
+        jsonobj.insert("schemes".to_string(), Value::Array(schemes));
+        Box::new(serde_json::to_string_pretty(&jsonobj).unwrap())
     }
 
     pub fn from_wt(s: &str) -> Result<Box<ColorSchemes>, SchemeError> {
@@ -177,23 +205,84 @@ impl ColorSchemes {
         Ok(Box::from(schemes))
     }
 
-    pub fn from_literal(s: &str, fmt: SchemeFormat) -> Result<Box<ColorSchemes>, SchemeError> {
-        match fmt {
-            SchemeFormat::WindowsTerminal => { ColorSchemes::from_wt(s) }
-            SchemeFormat::XShell => { unimplemented!() }
-            SchemeFormat::Alacritty => { ColorSchemes::from_alacritty(s) }
-            _ => { Err(SchemeError::Unsupported) }
-        }
+    pub fn to_alacritty(&self) -> Box<String> {
+        let res: Vec<String> = self.0.clone().into_iter().map(|schm| {
+            let yaml_str = |s: String| { serde_yaml::Value::String(s) };
+            let mut primary = serde_yaml::mapping::Mapping::with_capacity(2);
+            primary.insert(yaml_str("foreground".to_string()), yaml_str(schm.foreground.to_hex_repr()));
+            primary.insert(yaml_str("background".to_string()), yaml_str(schm.background.to_hex_repr()));
+            let mut normal = serde_yaml::mapping::Mapping::with_capacity(8);
+            normal.insert(yaml_str("black".to_string()), yaml_str(schm.black.to_hex_repr()));
+            normal.insert(yaml_str("red".to_string()), yaml_str(schm.red.to_hex_repr()));
+            normal.insert(yaml_str("green".to_string()), yaml_str(schm.green.to_hex_repr()));
+            normal.insert(yaml_str("yellow".to_string()), yaml_str(schm.yellow.to_hex_repr()));
+            normal.insert(yaml_str("blue".to_string()), yaml_str(schm.blue.to_hex_repr()));
+            normal.insert(yaml_str("magenta".to_string()), yaml_str(schm.magenta.to_hex_repr()));
+            normal.insert(yaml_str("cyan".to_string()), yaml_str(schm.cyan.to_hex_repr()));
+            normal.insert(yaml_str("white".to_string()), yaml_str(schm.white.to_hex_repr()));
+            let mut bright = serde_yaml::mapping::Mapping::with_capacity(8);
+            bright.insert(yaml_str("black".to_string()), yaml_str(schm.bright_black.to_hex_repr()));
+            bright.insert(yaml_str("red".to_string()), yaml_str(schm.bright_red.to_hex_repr()));
+            bright.insert(yaml_str("green".to_string()), yaml_str(schm.bright_green.to_hex_repr()));
+            bright.insert(yaml_str("yellow".to_string()), yaml_str(schm.bright_yellow.to_hex_repr()));
+            bright.insert(yaml_str("blue".to_string()), yaml_str(schm.bright_blue.to_hex_repr()));
+            bright.insert(yaml_str("magenta".to_string()), yaml_str(schm.bright_magenta.to_hex_repr()));
+            bright.insert(yaml_str("cyan".to_string()), yaml_str(schm.bright_cyan.to_hex_repr()));
+            bright.insert(yaml_str("white".to_string()), yaml_str(schm.bright_white.to_hex_repr()));
+            let mut color = serde_yaml::mapping::Mapping::new();
+            color.insert(yaml_str("primary".to_string()), serde_yaml::Value::Mapping(primary));
+            color.insert(yaml_str("normal".to_string()), serde_yaml::Value::Mapping(normal));
+            color.insert(yaml_str("bright".to_string()), serde_yaml::Value::Mapping(bright));
+            let mut root = serde_yaml::mapping::Mapping::new();
+            root.insert(yaml_str("color".to_string()), serde_yaml::Value::Mapping(color));
+            serde_yaml::to_string(&root).unwrap()
+        }).collect();
+        Box::new(res.join(""))
     }
 
-    pub fn to_literal(&self, fmt: SchemeFormat) -> Box<String> {
-        match fmt {
-            SchemeFormat::WindowsTerminal => { self.to_wt() }
-            SchemeFormat::SecureCRT => { unimplemented!() }
-            SchemeFormat::XShell => { self.to_xshell() }
-            SchemeFormat::Alacritty => { unimplemented!() }
-            SchemeFormat::MobaXTerm => { unimplemented!() }
-        }
+    pub fn from_xshell(s: &str) -> Result<Box<ColorSchemes>, SchemeError> {
+        let conf = ini::Ini::load_from_str(s).unwrap();
+        // Directly read and filter invalid sections & `Names` section, rather than reading `Names` section.
+        // This isn't orthodox but should be more fault-acceptable
+        let get_u32 = |schm: &Properties, k: &str| {
+            match schm.get(k) {
+                None => {0}
+                Some(val) => {
+                    u32::from_str_radix(val, 16).unwrap()
+                }
+            }
+        };
+        let sections: Vec<ColorScheme> = conf.sections()
+            .filter_map(|x| { x })
+            .filter(|name| { !name.eq_ignore_ascii_case("Names") })
+            .map(|name| {
+                (name, conf.section(Some(name)).unwrap())
+            })
+            .map(|(name, section)| {
+                ColorScheme {
+                    name: name.to_string(),
+                    black: get_u32(section, "black"),
+                    red: get_u32(section, "red"),
+                    green: get_u32(section, "green"),
+                    yellow: get_u32(section, "yellow"),
+                    blue: get_u32(section, "blue"),
+                    magenta: get_u32(section, "magenta"),
+                    cyan: get_u32(section, "cyan"),
+                    white: get_u32(section, "white"),
+                    bright_black: get_u32(section, "black(bold)"),
+                    bright_red: get_u32(section, "red(bold)"),
+                    bright_green: get_u32(section, "green(bold)"),
+                    bright_yellow: get_u32(section, "yellow(bold)"),
+                    bright_blue: get_u32(section, "blue(bold)"),
+                    bright_magenta: get_u32(section, "magenta(bold)"),
+                    bright_cyan: get_u32(section, "cyan(bold)"),
+                    bright_white: get_u32(section, "white(bold)"),
+                    background: get_u32(section, "background"),
+                    foreground: get_u32(section, "text"),
+                }
+            })
+            .collect();
+        Ok(Box::new(ColorSchemes(sections)))
     }
 
     pub fn to_xshell(&self) -> Box<String> {
@@ -251,5 +340,34 @@ black(bold)={bright_black:06x}",
         let name_buf = name_buf.join("\n");
         res.push_str(&name_buf);
         Box::new(res)
+    }
+
+    pub fn from_literal(s: &str, fmt: SchemeFormat) -> Result<Box<ColorSchemes>, SchemeError> {
+        match fmt {
+            SchemeFormat::WindowsTerminal => { ColorSchemes::from_wt(s) }
+            SchemeFormat::XShell => { ColorSchemes::from_xshell(s) }
+            SchemeFormat::Alacritty => { ColorSchemes::from_alacritty(s) }
+            _ => { Err(SchemeError::Unsupported) }
+        }
+    }
+
+    pub fn to_literal(&self, fmt: SchemeFormat) -> Box<String> {
+        match fmt {
+            SchemeFormat::WindowsTerminal => { self.to_wt() }
+            SchemeFormat::SecureCRT => { unimplemented!() }
+            SchemeFormat::XShell => { self.to_xshell() }
+            SchemeFormat::Alacritty => { self.to_alacritty() }
+            SchemeFormat::MobaXTerm => { unimplemented!() }
+        }
+    }
+}
+
+trait AsColor {
+    fn to_hex_repr(&self) -> String;
+}
+
+impl AsColor for RGBColor {
+    fn to_hex_repr(&self) -> String {
+        format!("#{:06X}", self)
     }
 }
